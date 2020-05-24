@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "351066845865",
+    "firebase_url": "https://location-sender-app.firebaseio.com",
+    "project_id": "location-sender-app",
+    "storage_bucket": "location-sender-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:351066845865:android:84046c716b6ca3e4772fb8",
+        "android_client_info": {
+          "package_name": "com.location.jobservice.client"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "351066845865-4ang1k7ik0pdipa1opei720lhu6j1kfn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOJtAkKRMPCvLLmYK5tFURjtFoJvdDHpE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "351066845865-4ang1k7ik0pdipa1opei720lhu6j1kfn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
