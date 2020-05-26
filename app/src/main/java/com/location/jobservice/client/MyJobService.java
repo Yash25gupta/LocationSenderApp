@@ -3,19 +3,13 @@ package com.location.jobservice.client;
 import android.annotation.SuppressLint;
 import android.app.job.JobParameters;
 import android.app.job.JobService;
-import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.PersistableBundle;
 import android.os.SystemClock;
-import android.os.Vibrator;
-import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -48,7 +42,6 @@ public class MyJobService extends JobService {
     private static final int RUN_TIME = 1000 * 60 * 5;  // 5 minutes
     private static final int DELAY = 1000 * 10;  // 10 seconds
     private static final int MAX = 80;  // History limit
-    private static final String TAG = "LocSenderJobService";
     private static final String collection = "Locations";
     private static final String LAT = "Lat", LNG = "Lng";
     private static final String hField = "History", cField = "current";
@@ -91,7 +84,6 @@ public class MyJobService extends JobService {
 
     @Override
     public boolean onStopJob(JobParameters params) {
-        Log.d(TAG, "onStopJob: Job Cancelled");
         if (myAsyncTask != null) {
             if (!myAsyncTask.isCancelled()) {
                 myAsyncTask.cancel(true);
@@ -112,7 +104,6 @@ public class MyJobService extends JobService {
                 for (int i = 0; i < timesLoop; i++) {
                     getLocation();
                     SystemClock.sleep(DELAY);
-                    publishProgress(i);
                     sendCurrentLocation();
                 }
                 sendLastTimeUpdate();
@@ -123,19 +114,11 @@ public class MyJobService extends JobService {
         @Override
         protected void onProgressUpdate(Integer... values) {
             super.onProgressUpdate(values);
-            Log.d(TAG, "onProgressUpdate: LoopCount: " + values[0] +
-                    " Latitude: " + curLatitude + " Longitude: " + curLongitude);
-            showToast("Latitude: " + curLatitude + "\nLongitude: " + curLongitude);
-            Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-            if (vibrator != null) {
-                vibrator.vibrate(100);
-            }
         }
 
         @Override
         protected void onPostExecute(String s) {
             super.onPostExecute(s);
-            Log.d(TAG, "onPostExecute: Message: " + s);
             jobFinished(parameters, true);
         }
     }
@@ -156,7 +139,6 @@ public class MyJobService extends JobService {
                             }
                         });
                     } else {
-                        Log.d(TAG, "Document does not exist. Creating doc...");
                         // Add History field to fireStore
                         Map<String, Object> temp1 = new HashMap<>();
                         temp1.put(LAT, 27.889741);
@@ -175,7 +157,6 @@ public class MyJobService extends JobService {
                         docReference.set(status, SetOptions.merge());
                         // Add lastTimeUpdate to fireStore
                         sendLastTimeUpdate();
-                        Log.d(TAG, "Document created");
                     }
                 }
             }
@@ -248,16 +229,6 @@ public class MyJobService extends JobService {
             return model + idTag;
         }
         return manufacture + " " + model + idTag;
-    }
-
-    private void showToast(final String msg) {
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(MyJobService.this.getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
-            }
-        });
     }
 
 }

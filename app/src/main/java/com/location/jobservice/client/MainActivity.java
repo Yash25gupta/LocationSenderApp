@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -54,7 +53,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startLocationJobService(View view) {
-        Toast.makeText(getApplicationContext(), "Job Scheduled", Toast.LENGTH_SHORT).show();
         String text = editText.getText().toString().trim();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -78,7 +76,6 @@ public class MainActivity extends AppCompatActivity {
     public void cancelLocationJobService(View view) {
         JobScheduler scheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
         Objects.requireNonNull(scheduler).cancel(JOB_ID);
-        Toast.makeText(getApplicationContext(), "Job Cancelled", Toast.LENGTH_SHORT).show();
     }
 
     public void hideUnHideApp(View view) {
@@ -88,12 +85,10 @@ public class MainActivity extends AppCompatActivity {
             case R.id.hide:
                 p.setComponentEnabledSetting(componentName,
                         PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
-                Toast.makeText(getApplicationContext(), "App hidden successfully", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.unHide:
                 p.setComponentEnabledSetting(componentName,
                         PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
-                Toast.makeText(getApplicationContext(), "App unHidden successfully", Toast.LENGTH_SHORT).show();
                 break;
         }
     }
