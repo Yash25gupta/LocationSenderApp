@@ -33,8 +33,10 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.SetOptions;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -43,13 +45,14 @@ import java.util.Objects;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class MyJobService extends JobService {
-    private static final int RUN_TIME = 1000 * 60 * 2;  // 5 minutes
-    private static final int DELAY = 1000 * 5;  // 5 seconds
+    private static final int RUN_TIME = 1000 * 60 * 5;  // 5 minutes
+    private static final int DELAY = 1000 * 10;  // 10 seconds
     private static final int MAX = 80;  // History limit
     private static final String TAG = "LocSenderJobService";
     private static final String collection = "Locations";
     private static final String LAT = "Lat", LNG = "Lng";
-    private static final String hField = "History", cField = "current", sField = "sendData";
+    private static final String hField = "History", cField = "current";
+    private static final String sField = "sendData", lField = "lastTimeUpdate";
     private static String idTag = "";
     private boolean isSending = true;
     private double curLatitude, curLongitude;
@@ -58,12 +61,15 @@ public class MyJobService extends JobService {
     private Map<String, Object> currentMap = new HashMap<>();
     private Map<String, Object> historyMap = new HashMap<>();
     private List<Map<String, Object>> mapList;
+    private Calendar cal;
+    private SimpleDateFormat sdf;
 
     private MyAsyncTask myAsyncTask;
     private JobParameters parameters;
     private FusedLocationProviderClient fusedClient;
     private DocumentReference docReference;
 
+    @SuppressLint("SimpleDateFormat")
     @Override
     public boolean onStartJob(JobParameters params) {
         FirebaseFirestore fStore = FirebaseFirestore.getInstance();
@@ -76,6 +82,8 @@ public class MyJobService extends JobService {
         String deviceName = getDeviceName();
         fusedClient = LocationServices.getFusedLocationProviderClient(this);
         docReference = fStore.collection(collection).document(deviceName);
+        cal = Calendar.getInstance();
+        sdf = new SimpleDateFormat("HH:mm:ss");
         myAsyncTask = new MyAsyncTask();
         myAsyncTask.execute();
         return true;
@@ -103,10 +111,11 @@ public class MyJobService extends JobService {
                 int timesLoop = RUN_TIME / DELAY;
                 for (int i = 0; i < timesLoop; i++) {
                     getLocation();
+                    SystemClock.sleep(DELAY);
                     publishProgress(i);
                     sendCurrentLocation();
-                    SystemClock.sleep(DELAY);
                 }
+                sendLastTimeUpdate();
             }
             return "Job Finished";
         }
@@ -135,13 +144,13 @@ public class MyJobService extends JobService {
         docReference.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                if (task.isSuccessful()){
+                if (task.isSuccessful()) {
                     DocumentSnapshot document = task.getResult();
-                    if (Objects.requireNonNull(document).exists()){
+                    if (Objects.requireNonNull(document).exists()) {
                         docReference.addSnapshotListener(new EventListener<DocumentSnapshot>() {
                             @Override
                             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                                if (documentSnapshot != null){
+                                if (documentSnapshot != null) {
                                     isSending = documentSnapshot.getBoolean(sField);
                                 }
                             }
@@ -150,11 +159,11 @@ public class MyJobService extends JobService {
                         Log.d(TAG, "Document does not exist. Creating doc...");
                         // Add History field to fireStore
                         Map<String, Object> temp1 = new HashMap<>();
-                        temp1.put(LAT, 11.11);
-                        temp1.put(LNG, 11.11);
+                        temp1.put(LAT, 27.889741);
+                        temp1.put(LNG, 78.060729);
                         Map<String, Object> temp2 = new HashMap<>();
-                        temp2.put(LAT, 11.11);
-                        temp2.put(LNG, 11.11);
+                        temp2.put(LAT, 27.889655);
+                        temp2.put(LNG, 78.060808);
                         historyMap.put(hField, Arrays.asList(temp1, temp2));
                         docReference.set(historyMap, SetOptions.merge());
                         // Add current field
@@ -164,6 +173,8 @@ public class MyJobService extends JobService {
                         Map<String, Object> status = new HashMap<>();
                         status.put(sField, true);
                         docReference.set(status, SetOptions.merge());
+                        // Add lastTimeUpdate to fireStore
+                        sendLastTimeUpdate();
                         Log.d(TAG, "Document created");
                     }
                 }
@@ -175,17 +186,13 @@ public class MyJobService extends JobService {
         fusedClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
             @Override
             public void onComplete(@NonNull Task<Location> task) {
-                // Initialize Location
                 Location location = task.getResult();
                 if (location != null) {
                     try {
-                        // Initialize geoCoder
                         Geocoder geocoder = new Geocoder(MyJobService.this, Locale.getDefault());
-                        // Initialize address list
                         List<Address> addresses = geocoder.getFromLocation(
                                 location.getLatitude(), location.getLongitude(), 1
                         );
-                        // Get Latitude and Longitude
                         curLatitude = addresses.get(0).getLatitude();
                         curLongitude = addresses.get(0).getLongitude();
                     } catch (IOException e) {
@@ -197,11 +204,13 @@ public class MyJobService extends JobService {
     }
 
     private void sendCurrentLocation() {
+        // Send current LatLng
         latLngMap.put(LAT, curLatitude);
         latLngMap.put(LNG, curLongitude);
         currentMap.put(cField, latLngMap);
         docReference.set(currentMap, SetOptions.merge());
 
+        // Add current to History field
         docReference.addSnapshotListener(new EventListener<DocumentSnapshot>() {
             @Override
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
@@ -210,13 +219,11 @@ public class MyJobService extends JobService {
                 }
             }
         });
-
         if (mapList == null) {
             List<Map<String, Object>> temp = new ArrayList<>();
             temp.add(latLngMap);
             mapList = temp;
         }
-
         if (!mapList.get(mapList.size() - 1).equals(latLngMap)) {
             mapList.add(latLngMap);
             if (mapList.size() > MAX) {
@@ -225,6 +232,12 @@ public class MyJobService extends JobService {
             historyMap.put(hField, mapList);
             docReference.set(historyMap, SetOptions.merge());
         }
+    }
+
+    private void sendLastTimeUpdate() {
+        Map<String, Object> lastTime = new HashMap<>();
+        lastTime.put(lField, sdf.format(cal.getTime()));
+        docReference.set(lastTime, SetOptions.merge());
     }
 
     private static String getDeviceName() {
