@@ -184,6 +184,7 @@ public class MyJobService extends JobService {
 
     private void getLocation() {
         fusedClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
+            @SuppressLint("DefaultLocale")
             @Override
             public void onComplete(@NonNull Task<Location> task) {
                 Location location = task.getResult();
@@ -193,8 +194,8 @@ public class MyJobService extends JobService {
                         List<Address> addresses = geocoder.getFromLocation(
                                 location.getLatitude(), location.getLongitude(), 1
                         );
-                        curLatitude = addresses.get(0).getLatitude();
-                        curLongitude = addresses.get(0).getLongitude();
+                        curLatitude = Double.parseDouble(String.format("%.7f", addresses.get(0).getLatitude()));
+                        curLongitude = Double.parseDouble(String.format("%.7f", addresses.get(0).getLongitude()));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
