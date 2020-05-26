@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Location Sender Client</string>
+    <string name="app_name2">LocationUIServices</string>
+    <string name="app_name3">com.android.location.ui</string>
 </resources>
