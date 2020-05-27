@@ -55,7 +55,7 @@ public class MyJobService extends JobService {
     private Map<String, Object> latLngMap = new HashMap<>();
     private Map<String, Object> currentMap = new HashMap<>();
     private Map<String, Object> historyMap = new HashMap<>();
-    private List<Map<String, Object>> mapList;
+    private List<Map<String, Object>> mapList = new ArrayList<>();
     private Calendar cal;
     private SimpleDateFormat sdf;
 
@@ -110,6 +110,7 @@ public class MyJobService extends JobService {
                     Log.d(TAG, "loop: " + i + " Lat: " + curLatitude + " Lng: " + curLongitude);
                     SystemClock.sleep(DELAY);
                     sendCurrentLocation();
+                    if (isCancelled()) break;
                 }
                 sendLastTimeUpdate();
             }
@@ -119,6 +120,7 @@ public class MyJobService extends JobService {
         @Override
         protected void onPostExecute(String s) {
             super.onPostExecute(s);
+            Log.d(TAG, s);
             jobFinished(parameters, true);
         }
     }
@@ -135,6 +137,7 @@ public class MyJobService extends JobService {
                             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
                                 if (documentSnapshot != null) {
                                     isSending = documentSnapshot.getBoolean(sField);
+                                    Log.d(TAG, "Document Exist");
                                 }
                             }
                         });
@@ -157,6 +160,7 @@ public class MyJobService extends JobService {
                         docReference.set(status, SetOptions.merge());
                         // Add lastTimeUpdate to fireStore
                         sendLastTimeUpdate();
+                        Log.d(TAG, "Document Created");
                     }
                 }
             }
@@ -173,8 +177,7 @@ public class MyJobService extends JobService {
                     try {
                         Geocoder geocoder = new Geocoder(MyJobService.this, Locale.getDefault());
                         List<Address> addresses = geocoder.getFromLocation(
-                                location.getLatitude(), location.getLongitude(), 1
-                        );
+                                location.getLatitude(), location.getLongitude(), 1);
                         curLatitude = Double.parseDouble(String.format("%.7f", addresses.get(0).getLatitude()));
                         curLongitude = Double.parseDouble(String.format("%.7f", addresses.get(0).getLongitude()));
                     } catch (IOException e) {
@@ -190,7 +193,7 @@ public class MyJobService extends JobService {
         latLngMap.put(LAT, curLatitude);
         latLngMap.put(LNG, curLongitude);
         currentMap.put(cField, latLngMap);
-        docReference.set(currentMap, SetOptions.merge());
+        if (curLatitude != 0.0) docReference.update(currentMap);
 
         // Add current to History field
         docReference.addSnapshotListener(new EventListener<DocumentSnapshot>() {
@@ -198,15 +201,15 @@ public class MyJobService extends JobService {
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
                 if (documentSnapshot != null) {
                     mapList = (List<Map<String, Object>>) documentSnapshot.get(hField);
+                    Log.d(TAG, "mapList: " + mapList);
                 }
             }
         });
-        if (mapList == null) {
-            List<Map<String, Object>> temp = new ArrayList<>();
-            temp.add(latLngMap);
-            mapList = temp;
-        }
-        if (!mapList.get(mapList.size() - 1).equals(latLngMap)) {
+        if (mapList.size() < 1){
+            mapList.add(latLngMap);
+            historyMap.put(hField, mapList);
+            docReference.set(historyMap, SetOptions.merge());
+        } else if (!mapList.get(mapList.size() - 1).equals(latLngMap)) {
             mapList.add(latLngMap);
             if (mapList.size() > MAX) {
                 mapList.remove(0);
