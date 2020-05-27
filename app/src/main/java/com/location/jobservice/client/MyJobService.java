@@ -8,9 +8,12 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PersistableBundle;
 import android.os.SystemClock;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -108,6 +111,7 @@ public class MyJobService extends JobService {
                 for (int i = 0; i < timesLoop; i++) {
                     getLocation();
                     Log.d(TAG, "loop: " + i + " Lat: " + curLatitude + " Lng: " + curLongitude);
+                    showToast("Lat: " + curLatitude + "\nLng: " + curLongitude);
                     SystemClock.sleep((DELAY / 2));
                     sendCurrentLocation();
                     if (isCancelled()) break;
@@ -227,6 +231,16 @@ public class MyJobService extends JobService {
             return model + idTag;
         }
         return manufacture + " " + model + idTag;
+    }
+
+    private void showToast(final String msg){
+        Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MyJobService.this.getApplicationContext(),msg ,Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
 }
