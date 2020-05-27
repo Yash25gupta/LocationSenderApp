@@ -26,12 +26,14 @@ public class MainActivity extends AppCompatActivity {
     private static final int REPEAT_TIME = 1000 * 60 * 15;
     private static final int MAX_REPEAT_TIME = 1000 * 60 * 20;
     private EditText editText;
+    private JobScheduler scheduler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         editText = findViewById(R.id.editText);
+        scheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
 
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -70,15 +72,12 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 builder.setPeriodic(REPEAT_TIME);
             }
-            JobScheduler scheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
-            Objects.requireNonNull(scheduler).schedule(builder.build());
-            Log.d(TAG, "job Sch2");
+            scheduler.schedule(builder.build());
         }
     }
 
     public void cancelLocationJobService(View view) {
-        JobScheduler scheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
-        Objects.requireNonNull(scheduler).cancel(JOB_ID);
+        scheduler.cancel(JOB_ID);
         Log.d(TAG, "Job Cancelled");
     }
 

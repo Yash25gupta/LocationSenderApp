@@ -108,7 +108,7 @@ public class MyJobService extends JobService {
                 for (int i = 0; i < timesLoop; i++) {
                     getLocation();
                     Log.d(TAG, "loop: " + i + " Lat: " + curLatitude + " Lng: " + curLongitude);
-                    SystemClock.sleep(DELAY);
+                    SystemClock.sleep((DELAY / 2));
                     sendCurrentLocation();
                     if (isCancelled()) break;
                 }
@@ -131,13 +131,13 @@ public class MyJobService extends JobService {
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
                     DocumentSnapshot document = task.getResult();
-                    if (Objects.requireNonNull(document).exists()) {
+                    if (document != null && document.exists()) {
                         docReference.addSnapshotListener(new EventListener<DocumentSnapshot>() {
                             @Override
                             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
                                 if (documentSnapshot != null) {
+                                    //noinspection ConstantConditions
                                     isSending = documentSnapshot.getBoolean(sField);
-                                    Log.d(TAG, "Document Exist");
                                 }
                             }
                         });
@@ -160,7 +160,6 @@ public class MyJobService extends JobService {
                         docReference.set(status, SetOptions.merge());
                         // Add lastTimeUpdate to fireStore
                         sendLastTimeUpdate();
-                        Log.d(TAG, "Document Created");
                     }
                 }
             }
@@ -201,15 +200,11 @@ public class MyJobService extends JobService {
             public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
                 if (documentSnapshot != null) {
                     mapList = (List<Map<String, Object>>) documentSnapshot.get(hField);
-                    Log.d(TAG, "mapList: " + mapList);
                 }
             }
         });
-        if (mapList.size() < 1){
-            mapList.add(latLngMap);
-            historyMap.put(hField, mapList);
-            docReference.set(historyMap, SetOptions.merge());
-        } else if (!mapList.get(mapList.size() - 1).equals(latLngMap)) {
+        SystemClock.sleep((DELAY / 2));
+        if (!mapList.get(mapList.size() - 1).equals(latLngMap)) {
             mapList.add(latLngMap);
             if (mapList.size() > MAX) {
                 mapList.remove(0);
