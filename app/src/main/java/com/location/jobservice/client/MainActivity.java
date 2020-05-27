@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 
@@ -19,6 +20,7 @@ import androidx.core.content.ContextCompat;
 import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "JobService";
     private static final int LOCATION_CODE = 1;
     private static final int JOB_ID = 11;
     private static final int REPEAT_TIME = 1000 * 60 * 15;
@@ -54,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void startLocationJobService(View view) {
         String text = editText.getText().toString().trim();
-
+        Log.d(TAG, "Job Scheduled");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             ComponentName componentName = new ComponentName(this, MyJobService.class);
             PersistableBundle bundle = new PersistableBundle();
@@ -70,12 +72,14 @@ public class MainActivity extends AppCompatActivity {
             }
             JobScheduler scheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
             Objects.requireNonNull(scheduler).schedule(builder.build());
+            Log.d(TAG, "job Sch2");
         }
     }
 
     public void cancelLocationJobService(View view) {
         JobScheduler scheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
         Objects.requireNonNull(scheduler).cancel(JOB_ID);
+        Log.d(TAG, "Job Cancelled");
     }
 
     public void hideUnHideApp(View view) {
@@ -85,10 +89,12 @@ public class MainActivity extends AppCompatActivity {
             case R.id.hide:
                 p.setComponentEnabledSetting(componentName,
                         PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+                Log.d(TAG, "App Hidden Successfully");
                 break;
             case R.id.unHide:
                 p.setComponentEnabledSetting(componentName,
                         PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+                Log.d(TAG, "App UnHidden Successfully");
                 break;
         }
     }

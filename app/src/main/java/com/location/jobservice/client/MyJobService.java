@@ -10,6 +10,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.PersistableBundle;
 import android.os.SystemClock;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -39,6 +40,7 @@ import java.util.Objects;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class MyJobService extends JobService {
+    private static final String TAG = "JobService";
     private static final int RUN_TIME = 1000 * 60 * 5;  // 5 minutes
     private static final int DELAY = 1000 * 10;  // 10 seconds
     private static final int MAX = 80;  // History limit
@@ -65,6 +67,7 @@ public class MyJobService extends JobService {
     @SuppressLint("SimpleDateFormat")
     @Override
     public boolean onStartJob(JobParameters params) {
+        Log.d(TAG, "Job Started");
         FirebaseFirestore fStore = FirebaseFirestore.getInstance();
         this.parameters = params;
         PersistableBundle bundle = params.getExtras();
@@ -84,6 +87,7 @@ public class MyJobService extends JobService {
 
     @Override
     public boolean onStopJob(JobParameters params) {
+        Log.d(TAG, "Job Stopped");
         if (myAsyncTask != null) {
             if (!myAsyncTask.isCancelled()) {
                 myAsyncTask.cancel(true);
@@ -103,17 +107,13 @@ public class MyJobService extends JobService {
                 int timesLoop = RUN_TIME / DELAY;
                 for (int i = 0; i < timesLoop; i++) {
                     getLocation();
+                    Log.d(TAG, "loop: " + i + " Lat: " + curLatitude + " Lng: " + curLongitude);
                     SystemClock.sleep(DELAY);
                     sendCurrentLocation();
                 }
                 sendLastTimeUpdate();
             }
             return "Job Finished";
-        }
-
-        @Override
-        protected void onProgressUpdate(Integer... values) {
-            super.onProgressUpdate(values);
         }
 
         @Override
