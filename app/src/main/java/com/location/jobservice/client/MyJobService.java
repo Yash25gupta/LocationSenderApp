@@ -26,6 +26,7 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.SetOptions;
@@ -39,25 +40,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class MyJobService extends JobService {
     private static final String TAG = "JobService";
-    private static final int RUN_TIME = 1000 * 60 * 5;  // 5 minutes
-    private static final int DELAY = 1000 * 10;  // 10 seconds
-    private static final int MAX = 80;  // History limit
+    private static final int RUN_TIME = 1000 * 60;  // 5 minutes
+    private static final int DELAY = 1000 * 5;  // 10 seconds
     private static final String collection = "Locations";
     private static final String LAT = "Lat", LNG = "Lng";
     private static final String hField = "History", cField = "current";
-    private static final String sField = "sendData", lField = "lastTimeUpdate";
+    private static final String sField = "sendData", lField = "lastRun";
     private static String idTag = "";
     private boolean isSending = true;
-    private double curLatitude, curLongitude;
+    private double curLat, curLng;
+    private double lstLat = 27.9, lstLng = 78.1;
 
+    private Map<String, Object> temp = new HashMap<>();
     private Map<String, Object> latLngMap = new HashMap<>();
-    private Map<String, Object> currentMap = new HashMap<>();
-    private Map<String, Object> historyMap = new HashMap<>();
     private List<Map<String, Object>> mapList = new ArrayList<>();
     private Calendar cal;
     private SimpleDateFormat sdf;
@@ -71,18 +70,19 @@ public class MyJobService extends JobService {
     @Override
     public boolean onStartJob(JobParameters params) {
         Log.d(TAG, "Job Started");
-        FirebaseFirestore fStore = FirebaseFirestore.getInstance();
         this.parameters = params;
+        FirebaseFirestore fStore = FirebaseFirestore.getInstance();
         PersistableBundle bundle = params.getExtras();
         String text = bundle.getString("idTag");
-        if (text != null && !text.equals("")) {
-            idTag = " " + text;
-        }
+        if (text != null && !text.equals("")) idTag = " " + text;
         String deviceName = getDeviceName();
-        fusedClient = LocationServices.getFusedLocationProviderClient(this);
         docReference = fStore.collection(collection).document(deviceName);
+        fusedClient = LocationServices.getFusedLocationProviderClient(this);
         cal = Calendar.getInstance();
         sdf = new SimpleDateFormat("HH:mm:ss");
+        temp.put(LAT, lstLat);
+        temp.put(LNG, lstLng);
+
         myAsyncTask = new MyAsyncTask();
         myAsyncTask.execute();
         return true;
@@ -110,13 +110,13 @@ public class MyJobService extends JobService {
                 int timesLoop = RUN_TIME / DELAY;
                 for (int i = 0; i < timesLoop; i++) {
                     getLocation();
-                    Log.d(TAG, "loop: " + i + " Lat: " + curLatitude + " Lng: " + curLongitude);
-                    showToast("Lat: " + curLatitude + "\nLng: " + curLongitude);
-                    SystemClock.sleep((DELAY / 2));
+                    Log.d(TAG, "loop: " + i + " Lng: " + curLng + " Lat: " + curLat);
+                    //showToast("Lat: " + curLat + "\nLng: " + curLng);
                     sendCurrentLocation();
                     if (isCancelled()) break;
+                    SystemClock.sleep(DELAY);
                 }
-                sendLastTimeUpdate();
+                copyLastMapToHistoryMap();
             }
             return "Job Finished";
         }
@@ -146,24 +146,14 @@ public class MyJobService extends JobService {
                             }
                         });
                     } else {
-                        // Add History field to fireStore
-                        Map<String, Object> temp1 = new HashMap<>();
-                        temp1.put(LAT, 27.889741);
-                        temp1.put(LNG, 78.060729);
-                        Map<String, Object> temp2 = new HashMap<>();
-                        temp2.put(LAT, 27.889655);
-                        temp2.put(LNG, 78.060808);
-                        historyMap.put(hField, Arrays.asList(temp1, temp2));
-                        docReference.set(historyMap, SetOptions.merge());
-                        // Add current field
-                        currentMap.put(cField, temp1);
-                        docReference.set(currentMap, SetOptions.merge());
-                        // Add Status to fireStore
-                        Map<String, Object> status = new HashMap<>();
-                        status.put(sField, true);
-                        docReference.set(status, SetOptions.merge());
-                        // Add lastTimeUpdate to fireStore
-                        sendLastTimeUpdate();
+                        Map<String, Object> data = new HashMap<>();
+                        data.put(sField, true);
+                        data.put(cField, temp);
+                        data.put(lField, Arrays.asList(temp, temp));
+                        Map<String, Object> hMap = new HashMap<>();
+                        hMap.put("00:00:00", Arrays.asList(temp, temp));
+                        data.put(hField, hMap);
+                        docReference.set(data);
                     }
                 }
             }
@@ -181,8 +171,8 @@ public class MyJobService extends JobService {
                         Geocoder geocoder = new Geocoder(MyJobService.this, Locale.getDefault());
                         List<Address> addresses = geocoder.getFromLocation(
                                 location.getLatitude(), location.getLongitude(), 1);
-                        curLatitude = Double.parseDouble(String.format("%.7f", addresses.get(0).getLatitude()));
-                        curLongitude = Double.parseDouble(String.format("%.7f", addresses.get(0).getLongitude()));
+                        curLat = Double.parseDouble(String.format("%.7f", addresses.get(0).getLatitude()));
+                        curLng = Double.parseDouble(String.format("%.7f", addresses.get(0).getLongitude()));
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -192,36 +182,38 @@ public class MyJobService extends JobService {
     }
 
     private void sendCurrentLocation() {
-        // Send current LatLng
-        latLngMap.put(LAT, curLatitude);
-        latLngMap.put(LNG, curLongitude);
-        currentMap.put(cField, latLngMap);
-        if (curLatitude != 0.0) docReference.update(currentMap);
-
-        // Add current to History field
-        docReference.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-            @Override
-            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                if (documentSnapshot != null) {
-                    mapList = (List<Map<String, Object>>) documentSnapshot.get(hField);
-                }
-            }
-        });
-        SystemClock.sleep((DELAY / 2));
-        if (!mapList.get(mapList.size() - 1).equals(latLngMap)) {
-            mapList.add(latLngMap);
-            if (mapList.size() > MAX) {
-                mapList.remove(0);
-            }
-            historyMap.put(hField, mapList);
-            docReference.set(historyMap, SetOptions.merge());
+        if (curLat != lstLat && curLng != lstLng && curLat != 0.0) {
+            lstLat = curLat;
+            lstLng = curLng;
+            // Create current LatLng Map
+            latLngMap.put(LAT, curLat);
+            latLngMap.put(LNG, curLng);
+            // Update Document
+            docReference.update(
+                    cField, latLngMap,
+                    lField, FieldValue.arrayUnion(latLngMap)
+            );
         }
     }
 
-    private void sendLastTimeUpdate() {
-        Map<String, Object> lastTime = new HashMap<>();
-        lastTime.put(lField, sdf.format(cal.getTime()));
-        docReference.set(lastTime, SetOptions.merge());
+    private void copyLastMapToHistoryMap() {
+        docReference.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+            @Override
+            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                if (documentSnapshot != null && documentSnapshot.exists()){
+                    mapList = (List<Map<String, Object>>) documentSnapshot.get(lField);
+                }
+            }
+        });
+        SystemClock.sleep(DELAY);
+        if (mapList.size() > 3) {  // 10
+            String newField = hField + "." + sdf.format(cal.getTime());
+            docReference.update(
+                    newField, mapList,
+                    lField, Arrays.asList(temp, temp)
+            );
+            Log.d(TAG, "HField updated");
+        }
     }
 
     private static String getDeviceName() {
