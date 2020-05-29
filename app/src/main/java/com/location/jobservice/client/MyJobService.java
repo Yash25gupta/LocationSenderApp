@@ -48,8 +48,8 @@ public class MyJobService extends JobService {
     private static final int DELAY = 1000 * 5;  // 10 seconds
     private static final String collection = "Locations";
     private static final String LAT = "Lat", LNG = "Lng";
-    private static final String hField = "History", cField = "current";
-    private static final String sField = "sendData", lField = "lastRun";
+    private static final String hField = "History", cField = "current", lField = "lastRun";
+    private static final String sField = "sendData", rField = "currentRunning";
     private static String idTag = "";
     private boolean isSending = true;
     private double curLat, curLng;
@@ -148,6 +148,7 @@ public class MyJobService extends JobService {
                     } else {
                         Map<String, Object> data = new HashMap<>();
                         data.put(sField, true);
+                        data.put(rField, true);
                         data.put(cField, temp);
                         data.put(lField, Arrays.asList(temp, temp));
                         Map<String, Object> hMap = new HashMap<>();
@@ -158,6 +159,7 @@ public class MyJobService extends JobService {
                 }
             }
         });
+        docReference.update(rField, true);
     }
 
     private void getLocation() {
@@ -210,6 +212,7 @@ public class MyJobService extends JobService {
             String newField = hField + "." + sdf.format(cal.getTime());
             docReference.update(
                     newField, mapList,
+                    rField, false,
                     lField, Arrays.asList(temp, temp)
             );
             Log.d(TAG, "HField updated");
