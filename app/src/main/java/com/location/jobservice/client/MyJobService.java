@@ -79,7 +79,7 @@ public class MyJobService extends JobService {
         docReference = fStore.collection(collection).document(deviceName);
         fusedClient = LocationServices.getFusedLocationProviderClient(this);
         cal = Calendar.getInstance();
-        sdf = new SimpleDateFormat("HH:mm:ss");
+        sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         temp.put(LAT, lstLat);
         temp.put(LNG, lstLng);
 
