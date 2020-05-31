@@ -20,7 +20,7 @@ import androidx.core.content.ContextCompat;
 import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "JobService";
+    private static final String TAG = "JobServices";
     private static final int LOCATION_CODE = 1;
     private static final int JOB_ID = 11;
     private static final int REPEAT_TIME = 1000 * 60 * 15;
